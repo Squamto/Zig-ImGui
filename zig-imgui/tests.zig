@@ -1,5 +1,5 @@
 const std = @import("std");
-const ig = @import("imgui");
+const ig = @import("Zig-ImGui");
 const builtin = @import("builtin");
 const assert = std.debug.assert;
 

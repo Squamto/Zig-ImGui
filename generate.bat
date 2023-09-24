@@ -13,7 +13,7 @@ where python || goto NO_PYTHON
 	pushd "%~dp0\cimgui\generator"
 	del ..\..\zig-imgui\cimgui.cpp
 	del ..\..\zig-imgui\cimgui.h
-	luajit .\generator.lua "gcc" ""
+	luajit .\generator.lua "gcc" "freetype" "-DIMGUI_ENABLE_STB_TRUETYPE -DIMGUI_USE_WCHAR32"
 	copy ..\cimgui.cpp ..\..\zig-imgui\cimgui.cpp >nul
 	copy ..\cimgui.h ..\..\zig-imgui\cimgui.h >nul
 	popd

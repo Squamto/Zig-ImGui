@@ -14,6 +14,8 @@ OUTPUT_DIR = 'zig-imgui'
 OUTPUT_FILE = 'imgui.zig'
 TEMPLATE_FILE = 'template.zig'
 
+function_name_whitelist = { 'ImGuiFreeType_GetBuilderForFreeType', 'ImGuiFreeType_SetAllocatorFunctions' }
+
 import json
 from collections import namedtuple
 from collections import defaultdict
@@ -351,6 +353,8 @@ class ZigData:
                 declName = 'init_' + declName
             elif 'destructor' in jFunc:
                 declName = declName.replace('destroy', 'deinit')
+        elif baseName in function_name_whitelist:
+            return baseName
         else:
             assert(baseName[0:2] == 'ig')
             declName = baseName[2:]

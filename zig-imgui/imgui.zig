@@ -460,7 +460,7 @@ pub const MemAllocFunc = ?*fn (sz: usize, user_data: ?*anyopaque) callconv(.C) ?
 pub const MemFreeFunc = ?*fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void;
 pub const SizeCallback = ?*fn (data: ?*SizeCallbackData) callconv(.C) void;
 pub const TextureID = ?*anyopaque;
-pub const Wchar = Wchar16;
+pub const Wchar = Wchar32;
 pub const Wchar16 = u16;
 pub const Wchar32 = u32;
 
@@ -917,6 +917,44 @@ pub const FocusedFlags = packed struct {
 
     pub const None: @This() = .{};
     pub const RootAndChildWindows: @This() = .{ .ChildWindows=true, .RootWindow=true };
+
+    pub usingnamespace FlagsMixin(@This());
+};
+
+pub const FreeTypeBuilderFlagsInt = FlagsInt;
+pub const FreeTypeBuilderFlags = packed struct {
+    NoHinting: bool = false,
+    NoAutoHint: bool = false,
+    ForceAutoHint: bool = false,
+    LightHinting: bool = false,
+    MonoHinting: bool = false,
+    Bold: bool = false,
+    Oblique: bool = false,
+    Monochrome: bool = false,
+    LoadColor: bool = false,
+    Bitmap: bool = false,
+    __reserved_bit_10: bool = false,
+    __reserved_bit_11: bool = false,
+    __reserved_bit_12: bool = false,
+    __reserved_bit_13: bool = false,
+    __reserved_bit_14: bool = false,
+    __reserved_bit_15: bool = false,
+    __reserved_bit_16: bool = false,
+    __reserved_bit_17: bool = false,
+    __reserved_bit_18: bool = false,
+    __reserved_bit_19: bool = false,
+    __reserved_bit_20: bool = false,
+    __reserved_bit_21: bool = false,
+    __reserved_bit_22: bool = false,
+    __reserved_bit_23: bool = false,
+    __reserved_bit_24: bool = false,
+    __reserved_bit_25: bool = false,
+    __reserved_bit_26: bool = false,
+    __reserved_bit_27: bool = false,
+    __reserved_bit_28: bool = false,
+    __reserved_bit_29: bool = false,
+    __reserved_bit_30: bool = false,
+    __reserved_bit_31: bool = false,
 
     pub usingnamespace FlagsMixin(@This());
 };
@@ -2255,7 +2293,7 @@ pub const Font = extern struct {
     Ascent: f32,
     Descent: f32,
     MetricsTotalSurface: i32,
-    Used4kPagesMap: [(0xFFFF+1)/4096/8]u8,
+    Used4kPagesMap: [(0x10FFFF+1)/4096/8]u8,
 
     /// AddGlyph(self: *Font, src_cfg: ?*const FontConfig, c: Wchar, x0: f32, y0: f32, x1: f32, y1: f32, u0: f32, v0: f32, u1: f32, v1: f32, advance_x: f32) void
     pub const AddGlyph = raw.ImFont_AddGlyph;
@@ -3119,6 +3157,15 @@ pub const Viewport = extern struct {
     pub const deinit = raw.ImGuiViewport_destroy;
 };
 
+
+/// ImGuiFreeType_GetBuilderForFreeType() ?*const FontBuilderIO
+pub const ImGuiFreeType_GetBuilderForFreeType = raw.ImGuiFreeType_GetBuilderForFreeType;
+
+/// ImGuiFreeType_SetAllocatorFunctionsExt(alloc_func: ?*fn (sz: usize, user_data: ?*anyopaque) callconv(.C) ?*anyopaque, free_func: ?*fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void, user_data: ?*anyopaque) void
+pub const ImGuiFreeType_SetAllocatorFunctionsExt = raw.ImGuiFreeType_SetAllocatorFunctions;
+pub inline fn ImGuiFreeType_SetAllocatorFunctions(alloc_func: ?*fn (sz: usize, user_data: ?*anyopaque) callconv(.C) ?*anyopaque, free_func: ?*fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void) void {
+    return @This().ImGuiFreeType_SetAllocatorFunctionsExt(alloc_func, free_func, null);
+}
 
 pub inline fn AcceptDragDropPayloadExt(kind: ?[*:0]const u8, flags: DragDropFlags) ?*const Payload {
     return raw.igAcceptDragDropPayload(kind, flags.toInt());
@@ -4984,6 +5031,8 @@ pub const raw = struct {
     pub extern fn ImFont_RenderText(self: *const Font, draw_list: ?*DrawList, size: f32, pos: *const Vec2, col: u32, clip_rect: *const Vec4, text_begin: ?[*]const u8, text_end: ?[*]const u8, wrap_width: f32, cpu_fine_clip: bool) callconv(.C) void;
     pub extern fn ImFont_SetGlyphVisible(self: *Font, c: Wchar, visible: bool) callconv(.C) void;
     pub extern fn ImFont_destroy(self: *Font) callconv(.C) void;
+    pub extern fn ImGuiFreeType_GetBuilderForFreeType() callconv(.C) ?*const FontBuilderIO;
+    pub extern fn ImGuiFreeType_SetAllocatorFunctions(alloc_func: ?*fn (sz: usize, user_data: ?*anyopaque) callconv(.C) ?*anyopaque, free_func: ?*fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void, user_data: ?*anyopaque) callconv(.C) void;
     pub extern fn ImGuiIO_AddFocusEvent(self: *IO, focused: bool) callconv(.C) void;
     pub extern fn ImGuiIO_AddInputCharacter(self: *IO, c: u32) callconv(.C) void;
     pub extern fn ImGuiIO_AddInputCharacterUTF16(self: *IO, c: Wchar16) callconv(.C) void;

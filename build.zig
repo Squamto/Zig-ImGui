@@ -18,10 +18,17 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    imgui_build.add_test_step(b, "test", target, optimize);
+    const freetype_dep = b.dependency("freetype", .{ .target = target, .optimize = optimize });
+
+    const module = imgui_build.get_module(b);
+    const lib = imgui_build.get_artifact(b, target, optimize);
+    lib.linkLibrary(freetype_dep.artifact("freetype"));
+    b.installArtifact(lib);
+
+    imgui_build.add_test_step(b, "test", module, lib, target, optimize);
 
     // {
-    //     const exe = example_exe(b, "example_glfw_vulkan", target, optimize);
+    //     const exe = example_exe(b, "example_glfw_vulkan", module, lib, target, optimize);
     //     link_glfw(exe, target);
     //     link_vulkan(exe, target);
 
@@ -35,7 +42,7 @@ pub fn build(b: *std.Build) void {
     //     run_step.dependOn(&run_cmd.step);
     // }
     // {
-    //     const exe = example_exe(b, "example_glfw_opengl3", target, optimize);
+    //     const exe = example_exe(b, "example_glfw_opengl3", module, lib, target, optimize);
     //     link_glfw(exe, target);
     //     link_glad(exe);
 
@@ -53,6 +60,8 @@ pub fn build(b: *std.Build) void {
 fn example_exe(
     b: *std.Build,
     comptime name: []const u8,
+    module: *std.Build.Module,
+    lib: *std.Build.Step.Compile,
     target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step.Compile {
@@ -66,7 +75,9 @@ fn example_exe(
         }
     );
 
-    imgui_build.link_module_and_lib(b, exe);
+    exe.linkLibrary(lib);
+    exe.addModule(imgui_build.zig_imgui_mod_name, module);
+
     b.installArtifact(exe);
     return exe;
 }

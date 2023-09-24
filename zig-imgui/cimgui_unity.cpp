@@ -1,5 +1,8 @@
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS 1
 #define IMGUI_DISABLE_OBSOLETE_KEYIO 1
+#define IMGUI_USE_WCHAR32 1
+#define IMGUI_ENABLE_FREETYPE 1
+#define CIMGUI_FREETYPE 1
 #define IMGUI_IMPL_API extern "C"
 
 #include "imgui/imgui.cpp"

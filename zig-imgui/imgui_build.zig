@@ -5,12 +5,14 @@ const std = @import("std");
 fn srcFile() []const u8 { return @src().file; }
 const sep = std.fs.path.sep_str;
 
+pub const zig_imgui_mod_name = "Zig-ImGui";
+pub const zig_imgui_lib_name = "cimgui";
 const zig_imgui_path = std.fs.path.dirname(srcFile()).?;
 const zig_imgui_file = zig_imgui_path ++ sep ++ "imgui.zig";
 
 pub fn get_module(b: *std.Build) *std.Build.Module
 {
-    return b.addModule("imgui",.{
+    return b.addModule(zig_imgui_mod_name,.{
         .source_file = .{ .path = zig_imgui_path ++ sep ++ "imgui.zig" },
     });
 }
@@ -30,9 +32,29 @@ pub fn link_c_source_files(exe: *std.Build.Step.Compile) void {
     );
 }
 
+pub fn get_artifact(
+    b: *std.Build,
+    target: std.zig.CrossTarget,
+    optimize: std.builtin.OptimizeMode
+) *std.Build.Step.Compile {
+    var cimgui = b.addStaticLibrary
+    (
+        .{
+            .name = zig_imgui_lib_name,
+            .target = target,
+            .optimize = optimize,
+        }
+    );
+    cimgui.linkLibCpp();
+    link_c_source_files(cimgui);
+    return cimgui;
+}
+
 pub fn add_test_step(
     b: *std.build.Builder,
     step_name: []const u8,
+    module: *std.Build.Module,
+    lib: *std.Build.Step.Compile,
     target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode,
 ) void {
@@ -44,9 +66,8 @@ pub fn add_test_step(
         }
     );
 
-    link_c_source_files(test_exe);
-    var module = get_module(b);
-    test_exe.addModule("imgui", module);
+    test_exe.linkLibrary(lib);
+    test_exe.addModule(zig_imgui_mod_name, module);
 
     const test_step = b.step(step_name, "Run zig-imgui tests");
     test_step.dependOn(&test_exe.step);
