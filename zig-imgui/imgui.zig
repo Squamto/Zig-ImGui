@@ -72,7 +72,7 @@ fn eql(comptime T: type, a: T, b: T) bool {
     return a == b;
 }
 
-fn Vector(comptime T: type) type {
+pub fn Vector(comptime T: type) type {
     return extern struct {
         Size: u32 = 0,
         Capacity: u32 = 0,
