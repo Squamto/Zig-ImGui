@@ -20,6 +20,9 @@ pub fn get_module(b: *std.Build) *std.Build.Module
 pub fn link_c_source_files(exe: *std.Build.Step.Compile) void {
     const imgui_cpp_file = zig_imgui_path ++ sep ++ "cimgui_unity.cpp";
 
+    exe.installHeader("zig-imgui/imgui/imgui.h", "imgui.h");
+    exe.installHeader("zig-imgui/cimgui.h", "cimgui.h");
+
     exe.linkLibCpp();
     exe.addCSourceFiles(
         &[_][]const u8{ imgui_cpp_file },

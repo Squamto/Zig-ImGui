@@ -150,6 +150,9 @@ class ZigData:
         sentinels = []
         decl = 'pub const '+zigName+' = enum (i32) {\n'
         for value in jsonValues:
+            if value['name'] == 'ImGuiMod_None':
+                continue
+
             valueName = value['name'].replace(name + '_', '')
             if valueName[0] >= '0' and valueName[0] <= '9':
                 valueName = '@"' + valueName + '"'
@@ -220,6 +223,8 @@ class ZigData:
         functionContext = FunctionContext(rawName, stname)
         if 'ret' in jFunc:
             retType = jFunc['ret']
+        elif jFunc.get('constructor') == True:
+            retType = stname
         else:
             retType = 'void'
         params = []
@@ -241,7 +246,11 @@ class ZigData:
         paramStrs = [ '...' if typeStr == '...' else (name + ': ' + typeStr) for name, typeStr, udtptr in params ]
         retType = self.convertComplexType(retType, ParamContext('return', functionContext))
 
-        rawDecl = '    pub extern fn '+rawName+'('+', '.join(paramStrs)+') callconv(.C) '+retType+';'
+        rawDecl = '    pub extern fn {}({}) callconv(.C) {};'.format(
+            rawName,
+            ', '.join(paramStrs),
+            ('*' + retType) if jFunc.get('constructor') == True else retType
+        )
         self.rawCommands.append(rawDecl)
 
         declName = self.makeZigFunctionName(jFunc, baseName, stname)
@@ -401,14 +410,14 @@ class ZigData:
             if defaultStr in ('true', 'false'):
                 return defaultStr
 
-        if typeStr == 'Vec2' and defaultStr.startswith('ImVec2('):
+        if typeStr in {'Vec2', '*Vec2', '*const Vec2'} and defaultStr.startswith('ImVec2('):
             params = defaultStr[defaultStr.index('(')+1 : defaultStr.index(')')]
             items = params.split(',')
             assert(len(items) == 2)
             return '.{.x='+self.convertParamDefault(items[0], 'f32', context) + \
                 ',.y='+self.convertParamDefault(items[1], 'f32', context)+'}'
 
-        if typeStr == 'Vec4' and defaultStr.startswith('ImVec4('):
+        if typeStr in {'Vec4', '*Vec4', '*const Vec4'} and defaultStr.startswith('ImVec4('):
             params = defaultStr[defaultStr.index('(')+1 : defaultStr.index(')')]
             items = params.split(',')
             assert(len(items) == 4)
@@ -434,6 +443,9 @@ class ZigData:
                 return '.{}'
             if defaultStr == 'ImDrawCornerFlags_All':
                 return 'DrawCornerFlags.All'
+
+        if typeStr == '?*anyopaque' and defaultStr == 'nullptr':
+            return 'null'
 
         if defaultStr == '(((ImU32)(255)<<24)|((ImU32)(255)<<16)|((ImU32)(255)<<8)|((ImU32)(255)<<0))' and typeStr == 'u32':
             return '0xFFFFFFFF'
@@ -534,9 +546,12 @@ class ZigData:
             zigValue += getPointers(numPointers, valueType, context)
 
         if valueConst and not zigValue.endswith('const'):
+            # Skip adding const for ImVec types
+            if type in {'ImVec2', 'ImVec4'}:
+                pass
             # Special case: ColorPicker4.ref_col is ?*const[4] f32
             # getPointers returns ?*const[4], don't put another const after that.
-            if not (context.name == 'ref_col' and context.parent.name == 'igColorPicker4'):
+            elif not (context.name == 'ref_col' and context.parent.name == 'igColorPicker4'):
                 zigValue += 'const'
 
         if numPointers > 0 and isFlags(valueType):

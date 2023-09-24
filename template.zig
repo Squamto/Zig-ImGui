@@ -10,7 +10,7 @@ const imgui = @This();
 
 pub const DrawCallback_ResetRenderState: DrawCallback = null;
 
-pub const VERSION = "1.88";
+pub const VERSION = "1.89.9";
 pub fn CHECKVERSION() void {
     if (builtin.mode != .ReleaseFast) {
         assert(raw.igDebugCheckVersionAndDataLayout(VERSION, @sizeOf(IO), @sizeOf(Style), @sizeOf(Vec2), @sizeOf(Vec4), @sizeOf(DrawVert), @sizeOf(DrawIdx)));
@@ -331,7 +331,7 @@ pub const Vec2 = extern struct {
     x: f32 = 0,
     y: f32 = 0,
 
-    pub fn init(x: f32, y: f32) Vec4 {
+    pub fn init(x: f32, y: f32) Vec2 {
         return .{ .x = x, .y = y };
     }
 

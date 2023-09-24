@@ -85,7 +85,7 @@ class Always:
 class Not:
     def __init__(self, match):
         self.match = match
-        
+
     def __eq__(self, text):
         return not (self.match == text)
 
@@ -95,7 +95,7 @@ class Not:
 class Contains:
     def __init__(self, text):
         self.text = text
-    
+
     def __eq__(self, test):
         return self.text in test
 
@@ -105,7 +105,7 @@ class Contains:
 class StartsWith:
     def __init__(self, text):
         self.text = text
-    
+
     def __eq__(self, test):
         return test.startswith(self.text)
 
@@ -115,7 +115,7 @@ class StartsWith:
 class EndsWith:
     def __init__(self, text):
         self.text = text
-    
+
     def __eq__(self, test):
         return test.endswith(self.text)
 
@@ -126,14 +126,14 @@ class Regex:
     def __init__(self, regexStr):
         self.re = re.compile(r'\A' + regexStr + r'\Z')
         self.raw_text = regexStr
-    
+
     def __eq__(self, test):
         return self.re.match(test)
 
     def __repr__(self):
         return 'Regex(' + repr(self.raw_text) + ')'
 
-        
+
 ## Rules is a dictionary.  The first key is the number of indirections.  The second is the C value type.
 ## The value of that lookup is an array of rules.  Each rule is a tuple (match, zigPointerStr).  match is
 ## an array of comparisons to perform at each level, with the rightmost member of the array being the most
@@ -210,6 +210,7 @@ Rules = {
         ]),
         ('ImWchar', [
             (['ranges'], '?[*:0]'),
+            (['return'], '?[*:0]'),
             (['glyph_ranges'], '?[*:0]'),
             (['GlyphRanges'], '?[*:0]'),
         ]),
@@ -224,6 +225,9 @@ Rules = {
         ]),
         ('ImGuiTableColumnSortSpecs', [
             (['ImGuiTableSortSpecs', 'Specs'], '?[*]'),
+        ]),
+        ('ImGuiWindowClass', [
+            (['window_class'], '?*'),
         ]),
         (StartsWith("Im"), [
             ([EndsWith('Ptr')], '?[*]'),
@@ -242,7 +246,6 @@ Rules = {
         (Always(), [
             (['items_getter', '', 'out_text'], '*?[*:0]'),
             ([StartsWith('ImFontAtlas_GetTexData'), 'out_pixels'], '*?[*]'),
-            (['ImDrawData', 'CmdLists'], '?[*]*'),
             (['ImFont_CalcTextSizeA', 'remaining'], '?*?[*:0]'),
         ]),
     ],
@@ -281,7 +284,7 @@ def getPointers(numPointers, valueType, context):
             return '*'
         if context.type == CT_PARAM and context.udtptr:
             return '*'
-            
+
     ## Search for a matching rule
     rulesByDepth = Rules.get(numPointers)
     if rulesByDepth:
@@ -291,7 +294,7 @@ def getPointers(numPointers, valueType, context):
                     if ruleMatches(rule[0], context):
                         RuleUsage[numPointers][groupIdx][ruleIdx] = True
                         return rule[1]
-    
+
     print("no matching pointer rules for", repr(context), '*' * numPointers + valueType)
     pointers = ''
     for i in range(numPointers):
