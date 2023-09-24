@@ -1,6 +1,3 @@
 [submodule "cimgui"]
 	path = cimgui
 	url = https://github.com/cimgui/cimgui.git
-[submodule "zig-imgui/vendor/lunasvg"]
-	path = zig-imgui/vendor/lunasvg
-	url = https://github.com/sammycage/lunasvg.git
