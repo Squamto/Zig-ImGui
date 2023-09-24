@@ -8,7 +8,7 @@ const builtin = @import("builtin");
 const assert = @import("std").debug.assert;
 const imgui = @This();
 
-pub const DrawCallback_ResetRenderState = @intToPtr(DrawCallback, ~@as(usize, 0));
+pub const DrawCallback_ResetRenderState: DrawCallback = null;
 
 pub const VERSION = "1.88";
 pub fn CHECKVERSION() void {
@@ -17,8 +17,8 @@ pub fn CHECKVERSION() void {
     }
 }
 
-pub const FLT_MAX: f32 = @bitCast(f32, @as(u32, 0x7F7FFFFF));
-pub const FLT_MIN: f32 = @bitCast(f32, @as(u32, 0x00800000));
+pub const FLT_MAX: f32 = @bitCast(@as(u32, 0x7F7FFFFF));
+pub const FLT_MIN: f32 = @bitCast(@as(u32, 0x00800000));
 
 pub const FlagsInt = u32;
 
@@ -26,10 +26,10 @@ pub fn FlagsMixin(comptime FlagType: type) type {
     comptime assert(@sizeOf(FlagType) == 4);
     return struct {
         pub fn toInt(self: FlagType) FlagsInt {
-            return @bitCast(FlagsInt, self);
+            return @bitCast(self);
         }
         pub fn fromInt(value: FlagsInt) FlagType {
-            return @bitCast(FlagType, value);
+            return @bitCast(value);
         }
         pub fn with(a: FlagType, b: FlagType) FlagType {
             return fromInt(toInt(a) | toInt(b));
@@ -72,7 +72,7 @@ fn eql(comptime T: type, a: T, b: T) bool {
     return a == b;
 }
 
-pub fn Vector(comptime T: type) type {
+fn Vector(comptime T: type) type {
     return extern struct {
         Size: u32 = 0,
         Capacity: u32 = 0,
@@ -83,7 +83,7 @@ pub fn Vector(comptime T: type) type {
 
         // Constructors, destructor
         pub fn deinit(self: *@This()) void {
-            if (self.Data) |d| raw.igMemFree(@ptrCast(*anyopaque, d));
+            if (self.Data) |d| raw.igMemFree(@ptrCast(d));
             self.* = undefined;
         }
 
@@ -91,7 +91,10 @@ pub fn Vector(comptime T: type) type {
             var cloned = @This(){};
             if (self.Size != 0) {
                 cloned.resize_undefined(self.Size);
-                @memcpy(@ptrCast([*]u8, cloned.Data.?), @ptrCast([*]const u8, self.Data.?), self.Size * @sizeOf(T));
+                @memcpy(
+                    @as([*]u8, @ptrCast(cloned.Data.?))[0..self.Size],
+                    @as([*]const u8, @ptrCast(self.Data.?))[0..self.Size],
+                );
             }
             return cloned;
         }
@@ -100,22 +103,28 @@ pub fn Vector(comptime T: type) type {
             self.Size = 0;
             if (other.Size != 0) {
                 self.resize_undefined(other.Size);
-                @memcpy(@ptrCast([*]u8, self.Data.?), @ptrCast([*]const u8, other.Data.?), other.Size * @sizeOf(T));
+                @memcpy(
+                    @as([*]u8, @ptrCast(self.Data.?))[0..other.Size],
+                    @as([*]const u8, @ptrCast(other.Data.?))[0..other.Size],
+                );
             }
         }
 
         pub fn from_slice(slice: []const T) @This() {
             var result = @This(){};
             if (slice.len != 0) {
-                result.resize_undefined(@intCast(u32, slice.len));
-                @memcpy(@ptrCast([*]u8, result.Data.?), @ptrCast([*]const u8, slice.ptr), slice.len * @sizeOf(T));
+                result.resize_undefined(@intCast(slice.len));
+                @memcpy(
+                    @as([*]u8, @ptrCast(result.Data.?))[0..slice.len],
+                    @as([*]const u8, @ptrCast(slice.ptr))[0..slice.len],
+                );
             }
             return result;
         }
 
         /// Important: does not destruct anything
         pub fn clear(self: *@This()) void {
-            if (self.Data) |d| raw.igMemFree(@ptrCast(?*anyopaque, d));
+            if (self.Data) |d| raw.igMemFree(@ptrCast(d));
             self.* = .{};
         }
 
@@ -141,7 +150,7 @@ pub fn Vector(comptime T: type) type {
                 for (self.items()) |_ptr| {
                     const ptr: *ValueT = _ptr;
                     destruct(ValueT, ptr);
-                    raw.igMemFree(@ptrCast(?*anyopaque, ptr));
+                    raw.igMemFree(@ptrCast(ptr));
                 }
             }
             self.clear();
@@ -199,20 +208,23 @@ pub fn Vector(comptime T: type) type {
         }
         pub fn reserve(self: *@This(), new_capacity: u32) void {
             if (new_capacity <= self.Capacity) return;
-            const new_data = @ptrCast(?[*]T, @alignCast(@alignOf(T), raw.igMemAlloc(new_capacity * @sizeOf(T))));
+            const new_data: ?[*]T = @ptrCast(@as(T, @alignCast(raw.igMemAlloc(new_capacity * @sizeOf(T)))));
             if (self.Data) |sd| {
                 if (self.Size != 0) {
-                    @memcpy(@ptrCast([*]u8, new_data.?), @ptrCast([*]const u8, sd), self.Size * @sizeOf(T));
+                    @memcpy(
+                        @as([*]u8, @ptrCast(new_data.?))[0..self.Size],
+                        @as([*]const u8, @ptrCast(sd))[0..self.Size],
+                    );
                 }
-                raw.igMemFree(@ptrCast(*anyopaque, sd));
+                raw.igMemFree(@ptrCast(sd));
             }
             self.Data = new_data;
             self.Capacity = new_capacity;
         }
         pub fn reserve_discard(self: *@This(), new_capacity: u32) void {
             if (new_capacity <= self.Capacity) return;
-            if (self.Data) |sd| raw.igMemFree(@ptrCast(*anyopaque, sd));
-            self.Data = @ptrCast(?[*]T, @alignCast(@alignOf(T), raw.igMemAlloc(new_capacity * @sizeOf(T))));
+            if (self.Data) |sd| raw.igMemFree(@ptrCast(sd));
+            self.Data = @ptrCast(@as(T, @alignCast(raw.igMemAlloc(new_capacity * @sizeOf(T)))));
             self.Capacity = new_capacity;
         }
 
@@ -284,8 +296,8 @@ pub fn Vector(comptime T: type) type {
             return false;
         }
         pub fn find(self: @This(), v: T) ?u32 {
-            return for (self.items()) |*it, i| {
-                if (imgui.eql(T, v, it.*)) break @intCast(u32, i);
+            return for (self.items(), 0..) |*it, i| {
+                if (imgui.eql(T, v, it.*)) break @intCast(i);
             } else null;
         }
         pub fn find_erase(self: *@This(), v: T) bool {
@@ -318,7 +330,7 @@ pub fn Vector(comptime T: type) type {
 pub const Vec2 = extern struct {
     x: f32 = 0,
     y: f32 = 0,
-    
+
     pub fn init(x: f32, y: f32) Vec4 {
         return .{ .x = x, .y = y };
     }
@@ -359,18 +371,18 @@ pub const Color = extern struct {
     pub fn initRGBAUnorm(r: u8, g: u8, b: u8, a: u8) Color {
         const inv_255: f32 = 1.0 / 255.0;
         return initRGBA(
-            @intToFloat(f32, r) * inv_255,
-            @intToFloat(f32, g) * inv_255,
-            @intToFloat(f32, b) * inv_255,
-            @intToFloat(f32, a) * inv_255,
+            @as(f32, @floatFromInt(r)) * inv_255,
+            @as(f32, @floatFromInt(g)) * inv_255,
+            @as(f32, @floatFromInt(b)) * inv_255,
+            @as(f32, @floatFromInt(a)) * inv_255,
         );
     }
     pub fn initRGBUnorm(r: u8, g: u8, b: u8) Color {
         const inv_255: f32 = 1.0 / 255.0;
         return initRGBA(
-            @intToFloat(f32, r) * inv_255,
-            @intToFloat(f32, g) * inv_255,
-            @intToFloat(f32, b) * inv_255,
+            @as(f32, @floatFromInt(r)) * inv_255,
+            @as(f32, @floatFromInt(g)) * inv_255,
+            @as(f32, @floatFromInt(b)) * inv_255,
             1.0,
         );
     }
@@ -390,10 +402,10 @@ pub const Color = extern struct {
     /// Convert an integer 0xaabbggrr to a floating point color
     pub fn initABGRPacked(value: u32) Color {
         return initRGBAUnorm(
-            @truncate(u8, value >>  0),
-            @truncate(u8, value >>  8),
-            @truncate(u8, value >> 16),
-            @truncate(u8, value >> 24),
+            @truncate(value >>  0),
+            @truncate(value >>  8),
+            @truncate(value >> 16),
+            @truncate(value >> 24),
         );
     }
     /// Convert from a floating point color to an integer 0xaabbggrr
@@ -406,19 +418,19 @@ pub const Color = extern struct {
     }
 };
 
-fn imguiZigAlloc(_: *anyopaque, len: usize, ptr_align: u29, len_align: u29, ret_addr: usize) std.mem.Allocator.Error![]u8 {
-    _ = len_align; _ = ret_addr;
+fn imguiZigAlloc(_: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    _ = ret_addr;
     assert(ptr_align <= @alignOf(*anyopaque)); // Alignment larger than pointers is not supported
-    return @ptrCast([*]u8, raw.igMemAlloc(len) orelse return error.OutOfMemory)[0..len];
+    return @as([*]u8, @ptrCast(raw.igMemAlloc(len) orelse return null));
 }
-fn imguiZigResize(_: *anyopaque, buf: []u8, buf_align: u29, new_len: usize, len_align: u29, ret_addr: usize) ?usize {
-    _ = len_align; _ = ret_addr;
+fn imguiZigResize(_: *anyopaque, buf: []u8, buf_align: u8, new_len: usize, ret_addr: usize) bool {
+    _ = ret_addr;
     assert(buf_align <= @alignOf(*anyopaque)); // Alignment larger than pointers is not supported
-    if (new_len > buf.len) return null;
+    if (new_len > buf.len) return false;
     if (new_len == 0 and buf.len != 0) raw.igMemFree(buf.ptr);
-    return new_len;
+    return true;
 }
-fn imguiZigFree(_: *anyopaque, buf: []u8, buf_align: u29, ret_addr: usize) void {
+fn imguiZigFree(_: *anyopaque, buf: []u8, buf_align: u8, ret_addr: usize) void {
     _ = buf_align; _ = ret_addr;
     if (buf.len != 0) raw.igMemFree(buf.ptr);
 }
@@ -440,13 +452,13 @@ pub const allocator: std.mem.Allocator = .{
 pub const DrawListSharedData = opaque {};
 pub const FontBuilderIO = opaque {};
 pub const Context = opaque {};
-pub const DrawCallback = ?fn (parent_list: ?*const DrawList, cmd: ?*const DrawCmd) callconv(.C) void;
+pub const DrawCallback = ?*fn (parent_list: ?*const DrawList, cmd: ?*const DrawCmd) callconv(.C) void;
 pub const DrawIdx = u16;
 pub const ID = u32;
-pub const InputTextCallback = ?fn (data: ?*InputTextCallbackData) callconv(.C) i32;
-pub const MemAllocFunc = ?fn (sz: usize, user_data: ?*anyopaque) callconv(.C) ?*anyopaque;
-pub const MemFreeFunc = ?fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void;
-pub const SizeCallback = ?fn (data: ?*SizeCallbackData) callconv(.C) void;
+pub const InputTextCallback = ?*fn (data: ?*InputTextCallbackData) callconv(.C) i32;
+pub const MemAllocFunc = ?*fn (sz: usize, user_data: ?*anyopaque) callconv(.C) ?*anyopaque;
+pub const MemFreeFunc = ?*fn (ptr: ?*anyopaque, user_data: ?*anyopaque) callconv(.C) void;
+pub const SizeCallback = ?*fn (data: ?*SizeCallbackData) callconv(.C) void;
 pub const TextureID = ?*anyopaque;
 pub const Wchar = Wchar16;
 pub const Wchar16 = u16;
@@ -1831,7 +1843,7 @@ pub const DrawCmd = extern struct {
     VtxOffset: u32,
     IdxOffset: u32,
     ElemCount: u32,
-    UserCallback: DrawCallback,
+    UserCallback: ?*anyopaque,
     UserCallbackData: ?*anyopaque,
 
     /// GetTexID(self: *const DrawCmd) TextureID
@@ -2582,10 +2594,10 @@ pub const IO = extern struct {
     BackendPlatformUserData: ?*anyopaque,
     BackendRendererUserData: ?*anyopaque,
     BackendLanguageUserData: ?*anyopaque,
-    GetClipboardTextFn: ?fn (user_data: ?*anyopaque) callconv(.C) ?[*:0]const u8,
-    SetClipboardTextFn: ?fn (user_data: ?*anyopaque, text: ?[*:0]const u8) callconv(.C) void,
+    GetClipboardTextFn: ?*fn (user_data: ?*anyopaque) callconv(.C) ?[*:0]const u8,
+    SetClipboardTextFn: ?*fn (user_data: ?*anyopaque, text: ?[*:0]const u8) callconv(.C) void,
     ClipboardUserData: ?*anyopaque,
-    SetPlatformImeDataFn: ?fn (viewport: ?*Viewport, data: ?*PlatformImeData) callconv(.C) void,
+    SetPlatformImeDataFn: ?*fn (viewport: ?*Viewport, data: ?*PlatformImeData) callconv(.C) void,
     _UnusedPadding: ?*anyopaque,
     WantCaptureMouse: bool,
     WantCaptureKeyboard: bool,
@@ -3373,9 +3385,9 @@ pub inline fn Combo_Str(label: ?[*:0]const u8, current_item: ?*i32, items_separa
     return @This().Combo_StrExt(label, current_item, items_separated_by_zeros, -1);
 }
 
-/// Combo_FnBoolPtrExt(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, popup_max_height_in_items: i32) bool
+/// Combo_FnBoolPtrExt(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?*fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, popup_max_height_in_items: i32) bool
 pub const Combo_FnBoolPtrExt = raw.igCombo_FnBoolPtr;
-pub inline fn Combo_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32) bool {
+pub inline fn Combo_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?*fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32) bool {
     return @This().Combo_FnBoolPtrExt(label, current_item, items_getter, data, items_count, -1);
 }
 
@@ -4056,9 +4068,9 @@ pub inline fn ListBox_Str_arr(label: ?[*:0]const u8, current_item: ?*i32, items:
     return @This().ListBox_Str_arrExt(label, current_item, items, items_count, -1);
 }
 
-/// ListBox_FnBoolPtrExt(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, height_in_items: i32) bool
+/// ListBox_FnBoolPtrExt(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?*fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, height_in_items: i32) bool
 pub const ListBox_FnBoolPtrExt = raw.igListBox_FnBoolPtr;
-pub inline fn ListBox_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32) bool {
+pub inline fn ListBox_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?*fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32) bool {
     return @This().ListBox_FnBoolPtrExt(label, current_item, items_getter, data, items_count, -1);
 }
 
@@ -4153,10 +4165,10 @@ pub inline fn PlotHistogram_FloatPtr(label: ?[*:0]const u8, values: *const f32, 
     return @This().PlotHistogram_FloatPtrExt(label, values, values_count, 0, null, FLT_MAX, FLT_MAX, .{.x=0,.y=0}, @sizeOf(f32));
 }
 
-pub inline fn PlotHistogram_FnFloatPtrExt(label: ?[*:0]const u8, values_getter: ?fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: Vec2) void {
+pub inline fn PlotHistogram_FnFloatPtrExt(label: ?[*:0]const u8, values_getter: ?*fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: Vec2) void {
     return raw.igPlotHistogram_FnFloatPtr(label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, &graph_size);
 }
-pub inline fn PlotHistogram_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32) void {
+pub inline fn PlotHistogram_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?*fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32) void {
     return @This().PlotHistogram_FnFloatPtrExt(label, values_getter, data, values_count, 0, null, FLT_MAX, FLT_MAX, .{.x=0,.y=0});
 }
 
@@ -4167,10 +4179,10 @@ pub inline fn PlotLines_FloatPtr(label: ?[*:0]const u8, values: *const f32, valu
     return @This().PlotLines_FloatPtrExt(label, values, values_count, 0, null, FLT_MAX, FLT_MAX, .{.x=0,.y=0}, @sizeOf(f32));
 }
 
-pub inline fn PlotLines_FnFloatPtrExt(label: ?[*:0]const u8, values_getter: ?fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: Vec2) void {
+pub inline fn PlotLines_FnFloatPtrExt(label: ?[*:0]const u8, values_getter: ?*fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: Vec2) void {
     return raw.igPlotLines_FnFloatPtr(label, values_getter, data, values_count, values_offset, overlay_text, scale_min, scale_max, &graph_size);
 }
-pub inline fn PlotLines_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32) void {
+pub inline fn PlotLines_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?*fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32) void {
     return @This().PlotLines_FnFloatPtrExt(label, values_getter, data, values_count, 0, null, FLT_MAX, FLT_MAX, .{.x=0,.y=0});
 }
 
@@ -5117,7 +5129,7 @@ pub const raw = struct {
     pub extern fn igColumns(count: i32, id: ?[*:0]const u8, border: bool) callconv(.C) void;
     pub extern fn igCombo_Str_arr(label: ?[*:0]const u8, current_item: ?*i32, items: [*]const[*:0]const u8, items_count: i32, popup_max_height_in_items: i32) callconv(.C) bool;
     pub extern fn igCombo_Str(label: ?[*:0]const u8, current_item: ?*i32, items_separated_by_zeros: ?[*]const u8, popup_max_height_in_items: i32) callconv(.C) bool;
-    pub extern fn igCombo_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, popup_max_height_in_items: i32) callconv(.C) bool;
+    pub extern fn igCombo_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?*fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, popup_max_height_in_items: i32) callconv(.C) bool;
     pub extern fn igCreateContext(shared_font_atlas: ?*FontAtlas) callconv(.C) ?*Context;
     pub extern fn igDebugCheckVersionAndDataLayout(version_str: ?[*:0]const u8, sz_io: usize, sz_style: usize, sz_vec2: usize, sz_vec4: usize, sz_drawvert: usize, sz_drawidx: usize) callconv(.C) bool;
     pub extern fn igDebugTextEncoding(text: ?[*]const u8) callconv(.C) void;
@@ -5268,7 +5280,7 @@ pub const raw = struct {
     pub extern fn igIsWindowHovered(flags: HoveredFlagsInt) callconv(.C) bool;
     pub extern fn igLabelText(label: ?[*:0]const u8, fmt: ?[*:0]const u8, ...) callconv(.C) void;
     pub extern fn igListBox_Str_arr(label: ?[*:0]const u8, current_item: ?*i32, items: [*]const[*:0]const u8, items_count: i32, height_in_items: i32) callconv(.C) bool;
-    pub extern fn igListBox_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, height_in_items: i32) callconv(.C) bool;
+    pub extern fn igListBox_FnBoolPtr(label: ?[*:0]const u8, current_item: ?*i32, items_getter: ?*fn (data: ?*anyopaque, idx: i32, out_text: *?[*:0]const u8) callconv(.C) bool, data: ?*anyopaque, items_count: i32, height_in_items: i32) callconv(.C) bool;
     pub extern fn igLoadIniSettingsFromDisk(ini_filename: ?[*:0]const u8) callconv(.C) void;
     pub extern fn igLoadIniSettingsFromMemory(ini_data: ?[*]const u8, ini_size: usize) callconv(.C) void;
     pub extern fn igLogButtons() callconv(.C) void;
@@ -5288,9 +5300,9 @@ pub const raw = struct {
     pub extern fn igOpenPopup_ID(id: ID, popup_flags: PopupFlagsInt) callconv(.C) void;
     pub extern fn igOpenPopupOnItemClick(str_id: ?[*:0]const u8, popup_flags: PopupFlagsInt) callconv(.C) void;
     pub extern fn igPlotHistogram_FloatPtr(label: ?[*:0]const u8, values: *const f32, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: *const Vec2, stride: i32) callconv(.C) void;
-    pub extern fn igPlotHistogram_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: *const Vec2) callconv(.C) void;
+    pub extern fn igPlotHistogram_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?*fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: *const Vec2) callconv(.C) void;
     pub extern fn igPlotLines_FloatPtr(label: ?[*:0]const u8, values: *const f32, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: *const Vec2, stride: i32) callconv(.C) void;
-    pub extern fn igPlotLines_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: *const Vec2) callconv(.C) void;
+    pub extern fn igPlotLines_FnFloatPtr(label: ?[*:0]const u8, values_getter: ?*fn (data: ?*anyopaque, idx: i32) callconv(.C) f32, data: ?*anyopaque, values_count: i32, values_offset: i32, overlay_text: ?[*:0]const u8, scale_min: f32, scale_max: f32, graph_size: *const Vec2) callconv(.C) void;
     pub extern fn igPopAllowKeyboardFocus() callconv(.C) void;
     pub extern fn igPopButtonRepeat() callconv(.C) void;
     pub extern fn igPopClipRect() callconv(.C) void;

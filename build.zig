@@ -1,55 +1,93 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const path = std.fs.path;
-const Builder = std.build.Builder;
-const LibExeObjStep = std.build.LibExeObjStep;
 
 const imgui_build = @import("zig-imgui/imgui_build.zig");
 
+
 const glslc_command = if (builtin.os.tag == .windows) "tools/win/glslc.exe" else "glslc";
 
-pub fn build(b: *Builder) void {
-    const mode = b.standardReleaseOptions();
+pub fn build(b: *std.Build) void {
+    // Standard target options allows the person running `zig build` to choose
+    // what target to build for. Here we do not override the defaults, which
+    // means any target is allowed, and the default is native. Other options
+    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
 
-    imgui_build.addTestStep(b, "test", mode, target);
+    // Standard optimization options allow the person running `zig build` to select
+    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
+    // set a preferred release mode, allowing the user to decide how to optimize.
+    const optimize = b.standardOptimizeOption(.{});
 
-    {
-        const exe = exampleExe(b, "example_glfw_vulkan", mode, target);
-        linkGlfw(exe, target);
-        linkVulkan(exe, target);
-    }
-    {
-        const exe = exampleExe(b, "example_glfw_opengl3", mode, target);
-        linkGlfw(exe, target);
-        linkGlad(exe, target);
-    }
+    imgui_build.add_test_step(b, "test", target, optimize);
+
+    // {
+    //     const exe = example_exe(b, "example_glfw_vulkan", target, optimize);
+    //     link_glfw(exe, target);
+    //     link_vulkan(exe, target);
+
+    //     const run_cmd = b.addRunArtifact(exe);
+    //     run_cmd.step.dependOn(b.getInstallStep());
+    //     if (b.args) |args| {
+    //         run_cmd.addArgs(args);
+    //     }
+
+    //     const run_step = b.step("runvk", "Run the app with Vulkan");
+    //     run_step.dependOn(&run_cmd.step);
+    // }
+    // {
+    //     const exe = example_exe(b, "example_glfw_opengl3", target, optimize);
+    //     link_glfw(exe, target);
+    //     link_glad(exe);
+
+    //     const run_cmd = b.addRunArtifact(exe);
+    //     run_cmd.step.dependOn(b.getInstallStep());
+    //     if (b.args) |args| {
+    //         run_cmd.addArgs(args);
+    //     }
+
+    //     const run_step = b.step("rungl", "Run the app with OpenGL");
+    //     run_step.dependOn(&run_cmd.step);
+    // }
 }
 
-fn exampleExe(b: *Builder, comptime name: []const u8, mode: std.builtin.Mode, target: std.zig.CrossTarget) *LibExeObjStep {
-    const exe = b.addExecutable(name, "examples/" ++ name ++ ".zig");
-    exe.setBuildMode(mode);
-    exe.setTarget(target);
-    imgui_build.link(exe);
-    exe.install();
+fn example_exe(
+    b: *std.Build,
+    comptime name: []const u8,
+    target: std.zig.CrossTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step.Compile {
+    const exe = b.addExecutable
+    (
+        .{
+            .name = name,
+            .root_source_file = .{ .path = "examples/" ++ name ++ ".zig" },
+            .target = target,
+            .optimize = optimize,
+        }
+    );
 
-    const run_step = b.step(name, "Run " ++ name);
-    const run_cmd = exe.run();
-    run_step.dependOn(&run_cmd.step);
-
+    imgui_build.link_module_and_lib(b, exe);
+    b.installArtifact(exe);
     return exe;
 }
 
-fn linkGlad(exe: *LibExeObjStep, target: std.zig.CrossTarget) void {
-    _ = target;
-    exe.addIncludeDir("examples/include/c_include");
-    exe.addCSourceFile("examples/c_src/glad.c", &[_][]const u8{"-std=c99"});
-    //exe.linkSystemLibrary("opengl");
+fn link_glad(exe: *std.Build.Step.Compile) void {
+    exe.addIncludePath(.{ .path = "examples/include/c_include" });
+    exe.addCSourceFile(.{
+        .file = .{ .path = "examples/c_src/glad.c" },
+        .flags = &[_][]const u8{ "-std=c99" }
+    });
 }
 
-fn linkGlfw(exe: *LibExeObjStep, target: std.zig.CrossTarget) void {
+fn link_glfw(exe: *std.Build.Step.Compile, target: std.zig.CrossTarget) void {
     if (target.isWindows()) {
-        exe.addObjectFile(if (target.getAbi() == .msvc) "examples/lib/win/glfw3.lib" else "examples/lib/win/libglfw3.a");
+        exe.addObjectFile(.{
+            .path =
+                if (target.getAbi() == .msvc)
+                    "examples/lib/win/glfw3.lib"
+                else
+                    "examples/lib/win/libglfw3.a"
+        });
         exe.linkSystemLibrary("gdi32");
         exe.linkSystemLibrary("shell32");
     } else {
@@ -57,9 +95,9 @@ fn linkGlfw(exe: *LibExeObjStep, target: std.zig.CrossTarget) void {
     }
 }
 
-fn linkVulkan(exe: *LibExeObjStep, target: std.zig.CrossTarget) void {
+fn link_vulkan(exe: *std.Build.Step.Compile, target: std.zig.CrossTarget) void {
     if (target.isWindows()) {
-        exe.addObjectFile("examples/lib/win/vulkan-1.lib");
+        exe.addObjectFile(.{ .path = "examples/lib/win/vulkan-1.lib" });
     } else {
         exe.linkSystemLibrary("vulkan");
     }

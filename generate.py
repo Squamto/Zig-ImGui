@@ -63,20 +63,20 @@ class ZigData:
 
         self.enums = []
         """ []zigDecl """
-        
+
         self.structures = {}
         """ {cName : Structure} """
 
         self.rawCommands = []
         """ []zigDecl """
-        
+
         self.rootFunctions = []
         """ []zigDecl """
 
     def addTypedef(self, name, definition):
         # don't generate known type conversions
         if name in typeConversions: return
-        
+
         if name in ('const_iterator', 'iterator', 'value_type'): return
 
         if definition.endswith(';'): definition = definition[:-1]
@@ -85,10 +85,10 @@ class ZigData:
         if definition == 'struct '+name:
             self.opaqueTypes[name] = True
             return
-        
+
         decl = 'pub const '+self.convertTypeName(name)+' = '+self.convertComplexType(definition, TypedefContext(name))+';'
         self.typedefs[name] = decl
-        
+
     def addFlags(self, name, jsonValues):
         self.typedefs.pop(name, None)
 
@@ -138,10 +138,10 @@ class ZigData:
                     init = '.{}'
                 decl += '    pub const ' + alias + ': @This() = ' + init + ';\n'
         decl += '\n    pub usingnamespace FlagsMixin(@This());\n'
-            
+
         decl += '};'
         self.bitsets.append(decl)
-        
+
     def addEnum(self, name, jsonValues):
         self.typedefs.pop(name, None)
         zigName = self.convertTypeName(name)
@@ -163,7 +163,7 @@ class ZigData:
             decl += '\n' + '\n'.join(sentinels) + '\n'
         decl += '};'
         self.enums.append(decl)
-        
+
     def addStruct(self, name, jsonFields):
         self.opaqueTypes.pop(name, None)
         zigName = self.convertTypeName(name)
@@ -190,7 +190,7 @@ class ZigData:
         if decl: #strip trailing newline
             decl = decl[:-1]
         self.structures[name] = Structure(zigName, decl, [])
-    
+
     def addFunction(self, name, jFunc):
         rawName = jFunc['ov_cimguiname']
         stname = jFunc['stname'] if 'stname' in jFunc else None
@@ -213,7 +213,7 @@ class ZigData:
 
         for name, func in byName.items():
             self.addFunction(name, func);
-    
+
     def makeFunction(self, jFunc, baseName, rawName, stname, parentTable):
         functionContext = FunctionContext(rawName, stname)
         if 'ret' in jFunc:
@@ -435,11 +435,14 @@ class ZigData:
             return '0xFFFFFFFF'
         print("Warning: Couldn't convert default value "+defaultStr+" of type "+typeStr+", "+repr(context))
         return defaultStr
-        
+
     def convertComplexType(self, type, context):
         # remove trailing const, it doesn't mean anything to Zig
         if type.endswith('const'):
             type = type[:-5].strip()
+
+        if type == 'ImDrawCallback' and context.name == 'UserCallback':
+            return '?*anyopaque'
 
         pointers = ''
         arrays = ''
@@ -496,20 +499,20 @@ class ZigData:
                         paramType += '*'
                         paramName = paramName[1:].strip()
                     zigParams.append(paramName + ': ' + self.convertComplexType(paramType, ParamContext(paramName, funcContext)))
-            return '?fn ('+', '.join(zigParams)+') callconv(.C) '+zigReturnType
-        
+            return '?*fn ('+', '.join(zigParams)+') callconv(.C) '+zigReturnType
+
         valueConst = False
         if type.startswith('const'):
             valueConst = True
             type = type[6:]
-        
+
         numPointers = 0
         while (type.endswith('*')):
             type = type[:-1]
             numPointers += 1
-        
+
         valueType = type
-        
+
         if valueType == 'void':
             if numPointers == 0: return 'void'
             else:
@@ -519,7 +522,7 @@ class ZigData:
                     valueType = 'void*'
                 numPointers -= 1
                 valueConst = False
-        
+
         zigValue = pointers
         zigValue += arrayModifier
 
@@ -544,13 +547,13 @@ class ZigData:
 
         innerType = self.convertTypeName(valueType)
         zigValue += innerType
-        
+
         if numPointers == 0 and isFlags(valueType):
             if context.type == CT_PARAM:
                 zigValue += 'Int'
             if context.type == CT_FIELD:
                 zigValue += ' align(4)'
-            
+
         return zigValue
 
     def convertArrayLen(self, length):
@@ -564,10 +567,10 @@ class ZigData:
             bufferIndexEnum = length[:-len('_COUNT')]
             zigIndexEnum = self.convertTypeName(bufferIndexEnum)
             return zigIndexEnum + '.COUNT'
-        
+
         if length == 'ImGuiKey_KeysData_SIZE':
             return 'Key.KeysData_SIZE'
-        
+
         #print("Couldn't convert array size:", length)
         return length
 
@@ -588,7 +591,7 @@ class ZigData:
         else:
             print("Couldn't convert type "+repr(cName))
             return cName
-            
+
     def writeFile(self, f):
         with open(TEMPLATE_FILE) as template:
             f.write(template.read())
@@ -602,7 +605,7 @@ class ZigData:
 
         for b in self.bitsets:
             f.write(b + '\n\n')
-            
+
         for e in self.enums:
             f.write(e + '\n\n')
 
@@ -645,12 +648,12 @@ if __name__ == '__main__':
         jsonTypedefs = json.load(f)
     with open(COMMANDS_JSON_FILE) as f:
         jsonCommands = json.load(f)
-        
+
     data = ZigData()
-    
+
     for typedef in jsonTypedefs:
         data.addTypedef(typedef, jsonTypedefs[typedef])
-    
+
     jsonEnums = jsonStructs['enums']
     for enumName in jsonEnums:
         # enum name in this data structure ends with _, so strip that.
@@ -661,14 +664,14 @@ if __name__ == '__main__':
             data.addFlags(actualName, jsonEnums[enumName])
         else:
             data.addEnum(actualName, jsonEnums[enumName])
-    
+
     jsonStructures = jsonStructs['structs']
     for structName in jsonStructures:
         data.addStruct(structName, jsonStructures[structName])
-        
+
     for overrides in jsonCommands.values():
         data.addFunctionSet(overrides)
-    
+
     # remove things that are manually defined in template.zig
     del data.structures['ImVec2']
     del data.structures['ImVec4']
@@ -677,6 +680,5 @@ if __name__ == '__main__':
     makedirs(OUTPUT_DIR, exist_ok=True)
     with open(OUTPUT_DIR+'/'+OUTPUT_FILE, "w", newline='\n') as f:
         data.writeFile(f)
-    
+
     warnForUnusedRules()
-    
