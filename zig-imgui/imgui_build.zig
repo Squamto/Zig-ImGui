@@ -34,6 +34,7 @@ pub fn link_c_source_files(exe: *std.Build.Step.Compile) void {
 
 pub fn get_artifact(
     b: *std.Build,
+    freetype_dep: ?*std.Build.Dependency,
     target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode
 ) *std.Build.Step.Compile {
@@ -45,7 +46,13 @@ pub fn get_artifact(
             .optimize = optimize,
         }
     );
+
     cimgui.linkLibCpp();
+    if (freetype_dep != null)
+    {
+        cimgui.linkLibrary(freetype_dep.?.artifact("freetype"));
+    }
+
     link_c_source_files(cimgui);
     return cimgui;
 }

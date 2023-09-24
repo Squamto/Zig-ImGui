@@ -21,8 +21,7 @@ pub fn build(b: *std.Build) void {
     const freetype_dep = b.dependency("freetype", .{ .target = target, .optimize = optimize });
 
     const module = imgui_build.get_module(b);
-    const lib = imgui_build.get_artifact(b, target, optimize);
-    lib.linkLibrary(freetype_dep.artifact("freetype"));
+    const lib = imgui_build.get_artifact(b, freetype_dep, target, optimize);
     b.installArtifact(lib);
 
     imgui_build.add_test_step(b, "test", module, lib, target, optimize);
