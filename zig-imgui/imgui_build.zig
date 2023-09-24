@@ -3,34 +3,42 @@ const std = @import("std");
 
 // @src() is only allowed inside of a function, so we need this wrapper
 fn srcFile() []const u8 { return @src().file; }
-const sep = std.fs.path.sep_str;
 
-pub const zig_imgui_mod_name = "Zig-ImGui";
 pub const zig_imgui_lib_name = "cimgui";
+pub const zig_imgui_mod_name = "Zig-ImGui";
 const zig_imgui_path = std.fs.path.dirname(srcFile()).?;
-const zig_imgui_file = zig_imgui_path ++ sep ++ "imgui.zig";
 
 pub fn get_module(b: *std.Build) *std.Build.Module
 {
     return b.addModule(zig_imgui_mod_name,.{
-        .source_file = .{ .path = zig_imgui_path ++ sep ++ "imgui.zig" },
+        .source_file = .{
+            .path = b.pathJoin(&[_][]const u8 {
+                zig_imgui_path,
+                "imgui.zig",
+            })
+        },
     });
 }
 
-pub fn link_c_source_files(exe: *std.Build.Step.Compile) void {
-    const imgui_cpp_file = zig_imgui_path ++ sep ++ "cimgui_unity.cpp";
-
-    exe.installHeader("zig-imgui/imgui/imgui.h", "imgui.h");
-    exe.installHeader("zig-imgui/cimgui.h", "cimgui.h");
-
-    exe.linkLibCpp();
-    exe.addCSourceFiles(
-        &[_][]const u8{ imgui_cpp_file },
-        &[_][]const u8 {
-            "-std=c++17",
-            "-fno-sanitize=undefined",
-            "-ffunction-sections",
-            "-fvisibility=hidden",
+pub fn link_c_source_files(b: *std.Build, exe: *std.Build.Step.Compile) void {
+    exe.addCSourceFile
+    (
+        .{
+            .file = .{
+                .path = b.pathJoin(&[_][]const u8 {
+                    zig_imgui_path,
+                    "vendor",
+                    "cimgui",
+                    "cimgui_unity.cpp",
+                })
+            },
+            .flags = &[_][]const u8
+            {
+                "-std=c++17",
+                "-fno-sanitize=undefined",
+                "-ffunction-sections",
+                "-fvisibility=hidden",
+            },
         }
     );
 }
@@ -56,7 +64,7 @@ pub fn get_artifact(
         cimgui.linkLibrary(freetype_dep.?.artifact("freetype"));
     }
 
-    link_c_source_files(cimgui);
+    link_c_source_files(b, cimgui);
     return cimgui;
 }
 
@@ -70,7 +78,12 @@ pub fn add_test_step(
 ) void {
     const test_exe = b.addTest(
         .{
-            .root_source_file = .{ .path = zig_imgui_path ++ std.fs.path.sep_str ++ "tests.zig" },
+            .root_source_file = .{
+                .path = b.pathJoin(&[_][]const u8 {
+                    zig_imgui_path,
+                    "tests.zig",
+                })
+            },
             .target = target,
             .optimize = optimize,
         }

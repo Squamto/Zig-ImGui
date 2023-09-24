@@ -10,5 +10,7 @@
 #include "imgui/imgui_demo.cpp"
 #include "imgui/imgui_tables.cpp"
 #include "imgui/imgui_widgets.cpp"
+#ifdef IMGUI_ENABLE_FREETYPE
 #include "imgui/imgui_freetype.cpp"
+#endif
 #include "cimgui.cpp"

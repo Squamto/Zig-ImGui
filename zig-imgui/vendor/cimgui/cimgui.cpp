@@ -2,7 +2,6 @@
 //based on imgui.h file version "1.89.9" 18990 from Dear ImGui https://github.com/ocornut/imgui
 //with imgui_freetype.h api
 //docking branch
-#define IMGUI_ENABLE_FREETYPE
 #ifdef IMGUI_ENABLE_FREETYPE
 #ifndef CIMGUI_FREETYPE
 #error "IMGUI_FREETYPE should be defined for Freetype linking"
