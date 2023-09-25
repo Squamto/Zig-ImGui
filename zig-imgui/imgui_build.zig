@@ -127,6 +127,7 @@ pub fn get_artifact(
         }
     );
 
+    cimgui.linkLibCpp();
     if (freetype_dep != null)
     {
         cimgui.defineCMacro("IMGUI_ENABLE_FREETYPE", "1");
@@ -136,7 +137,6 @@ pub fn get_artifact(
 
     if (enable_lunasvg)
     {
-        cimgui.linkLibCpp();
         cimgui.defineCMacro("IMGUI_ENABLE_FREETYPE_LUNASVG", "1");
         link_lunasvg_source_files(b, cimgui);
     }
