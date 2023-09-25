@@ -18,10 +18,22 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const freetype_dep = b.dependency("freetype", .{ .target = target, .optimize = optimize });
+    const enable_freetype = b.option(bool, "enable_freetype",
+        "Enable building freetype as ImGui's font renderer."
+    ) orelse false;
+
+    const enable_lunasvg = b.option(bool, "enable_lunasvg",
+        "Enable building lunasvg to provide better emoji support in freetype. Requires freetype to be enabled."
+    ) orelse false;
+
+    const freetype_dep =
+        if (enable_freetype)
+            b.dependency("freetype", .{ .target = target, .optimize = optimize })
+        else
+            null;
 
     const module = imgui_build.get_module(b);
-    const lib = imgui_build.get_artifact(b, freetype_dep, target, optimize);
+    const lib = imgui_build.get_artifact(b, freetype_dep, enable_lunasvg, target, optimize);
     b.installArtifact(lib);
 
     imgui_build.add_test_step(b, "test", module, lib, target, optimize);

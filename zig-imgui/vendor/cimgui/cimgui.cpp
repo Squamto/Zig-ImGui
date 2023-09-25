@@ -2676,6 +2676,7 @@ CIMGUI_API ImGuiKey igGetKeyIndex(ImGuiKey key)
 {
     return ImGui::GetKeyIndex(key);
 }
+#ifdef IMGUI_ENABLE_FREETYPE
 CIMGUI_API const ImFontBuilderIO* ImGuiFreeType_GetBuilderForFreeType()
 {
     return ImGuiFreeType::GetBuilderForFreeType();
@@ -2684,6 +2685,7 @@ CIMGUI_API void ImGuiFreeType_SetAllocatorFunctions(void*(*alloc_func)(size_t sz
 {
     return ImGuiFreeType::SetAllocatorFunctions(alloc_func,free_func,user_data);
 }
+#endif
 
 
 

@@ -20,7 +20,7 @@ pub fn get_module(b: *std.Build) *std.Build.Module
     });
 }
 
-pub fn link_c_source_files(b: *std.Build, exe: *std.Build.Step.Compile) void {
+pub fn link_cimgui_source_files(b: *std.Build, exe: *std.Build.Step.Compile) void {
     exe.addCSourceFile
     (
         .{
@@ -43,9 +43,78 @@ pub fn link_c_source_files(b: *std.Build, exe: *std.Build.Step.Compile) void {
     );
 }
 
+pub fn link_lunasvg_source_files(b: *std.Build, exe: *std.Build.Step.Compile) void
+{
+    const lunasvg_path = b.pathJoin(&[_][]const u8 {
+        zig_imgui_path,
+        "vendor",
+        "lunasvg",
+    });
+
+    exe.addIncludePath(.{ .path = b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg" }) });
+    exe.addCSourceFiles
+    (
+        &[_][]const u8
+        {
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-paint.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-geometry.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-blend.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-rle.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-dash.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-ft-raster.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-ft-stroker.c" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "3rdparty", "plutovg", "plutovg-ft-math.c" }),
+        },
+        &[_][]const u8
+        {
+            "-std=c11",
+            "-fno-sanitize=undefined",
+            "-ffunction-sections",
+            "-fvisibility=hidden",
+        }
+    );
+
+    exe.addIncludePath(.{ .path = b.pathJoin(&[_][]const u8 { lunasvg_path, "include" }) });
+    exe.addCSourceFiles
+    (
+        &[_][]const u8
+        {
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "lunasvg.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "element.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "property.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "parser.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "layoutcontext.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "canvas.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "clippathelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "defselement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "gelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "geometryelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "graphicselement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "maskelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "markerelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "paintelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "stopelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "styledelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "styleelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "svgelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "symbolelement.cpp" }),
+            b.pathJoin(&[_][]const u8 { lunasvg_path, "source", "useelement.cpp" }),
+        },
+        &[_][]const u8
+        {
+            "-std=c++17",
+            "-fno-sanitize=undefined",
+            "-ffunction-sections",
+            "-fvisibility=hidden",
+        }
+    );
+}
+
 pub fn get_artifact(
     b: *std.Build,
     freetype_dep: ?*std.Build.Dependency,
+    enable_lunasvg: bool,
     target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode
 ) *std.Build.Step.Compile {
@@ -58,13 +127,21 @@ pub fn get_artifact(
         }
     );
 
-    cimgui.linkLibCpp();
     if (freetype_dep != null)
     {
+        cimgui.defineCMacro("IMGUI_ENABLE_FREETYPE", "1");
+        cimgui.defineCMacro("CIMGUI_FREETYPE", "1");
         cimgui.linkLibrary(freetype_dep.?.artifact("freetype"));
     }
 
-    link_c_source_files(b, cimgui);
+    if (enable_lunasvg)
+    {
+        cimgui.linkLibCpp();
+        cimgui.defineCMacro("IMGUI_ENABLE_FREETYPE_LUNASVG", "1");
+        link_lunasvg_source_files(b, cimgui);
+    }
+
+    link_cimgui_source_files(b, cimgui);
     return cimgui;
 }
 
