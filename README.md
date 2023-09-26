@@ -2,28 +2,63 @@
 
 Zig-ImGui uses [cimgui](https://github.com/cimgui/cimgui) to generate [Zig](https://github.com/ziglang/zig) bindings for [Dear ImGui](https://github.com/ocornut/imgui).
 
-It is currently up to date with [Dear ImGui v1.88](https://github.com/ocornut/imgui/tree/v1.88).
+It is currently up to date with [Dear ImGui v1.89.9](https://github.com/ocornut/imgui/releases/tag/v1.89.9).
+
+At the time of writing, Zig-ImGui supports zig `0.11.0` and `0.12.0-dev.589+731fd217d`
 
 ## Using the pre-generated bindings
 
 Zig-ImGui strives to be easy to use.  To use the pre-generated bindings, do the following:
 
-- Copy the zig-imgui directory into your project
-- In your build.zig, do the following:
+- Copy from the following dependency section into your project's `build.zig.zon` file:
     ```zig
-    const imgui_build = @import("path/to/zig-imgui/imgui_build.zig");
-    imgui_build.link(exe_that_needs_imgui);
+    .{
+        .name = "myproject",
+        .version = "1.0.0", // whatever your version is
+        .dependencies =
+        .{
+            .ZigImGui =
+            .{
+                // https://multiformats.io/multihash/#sha2-256-256-bits-aka-sha256
+                // "1220" + sha256sum of folder contents
+                // run zig build with a url and fake hash to cause zig to generate
+                // an error message with the expected hash, ex:
+                // .url = "https://whatever.com/file.tar.gz"
+                // .hash = "12200000000000000000000000000000000000000000000000000000000000000000"
+                .hash = "1220ccb76517a0feca6ab27f9100a0d9afe5d974309ee2c7e4dc3fc754a0b71695b1",
+                // Make sure to grab the latest commit version and not whatever is in this sample here
+                .url = "https://github.com/joshua-software-dev/Zig-ImGui/archive/6fcbd57e5b1b1ac3b21f0eba4cdf27bacc198116.tar.gz",
+            },
+        },
+    }
     ```
-- If you would like to run basic tests on the bindings in your project, add this to build.zig:
+- In your build.zig, add the following:
     ```zig
-    imgui_build.addTestStep(b, "imgui:test", mode, target);
+    const ZigImGui_dep = b.dependency("ZigImGui", .{
+        .target = target,
+        .optimize = optimize,
+        // Include support for using freetype font rendering in addition to
+        // ImGui's default truetype, necessary for emoji support
+        //
+        // Note: ImGui will prefer using freetype by default when this option
+        // is enabled, but the option to use typetype manually at runtime is
+        // still available
+        .enable_freetype = true, // if unspecified, the default is false
+        // Enable ImGui's extention to freetype which uses lunasvg:
+        // https://github.com/sammycage/lunasvg
+        // to support SVGinOT (SVG in Open Type) color emojis
+        //
+        // Notes from ImGui's documentation:
+        // * Not all types of color fonts are supported by FreeType at the
+        //   moment.
+        // * Stateful Unicode features such as skin tone modifiers are not
+        //   supported by the text renderer.
+        .enable_lunasvg = false // if unspecified, the default is false
+    });
     ```
-    and then run `zig build imgui:test`
-- If you need to use zig-imgui as a dependency of another package, use `imgui_build.pkg` as the dependency.  Be sure to call `imgui_build.link` or `imgui_build.linkWithoutPackage` on any executable or test which uses this dependency.
-- In your project, use `@import("imgui")` to obtain the bindings.
-- See the examples in `example/` for basic usage examples.
+- In your project, use `@import("Zig-ImGui")` to obtain the bindings.
 - For more detailed documentation, see the [official ImGui documentation](https://github.com/ocornut/imgui/tree/v1.88/docs).
-- For an example of a real project using these bindings, see [SpexGuy/Zig-Gltf-Display](https://github.com/SpexGuy/Zig-Gltf-Display).
+- For an example of a real project using these bindings, see [joshua-software-dev/Lurk](https://github.com/joshua-software-dev/Lurk).
 
 ## Binding style
 
@@ -50,14 +85,6 @@ fn SetWindowCollapsed_BoolExt(collapsed: bool, cond: CondFlags) void;
 ```
 
 Nullability and array-ness of pointer parameters is hand-tuned by the logic in pointer_rules.py.  If you find any incorrect translations, please open an issue.
-
-## Running the examples
-
-This project also contains some example backends in the examples/ folder, which have been ported to Zig. You may want to vendor the `impl` files into your project for a quick start. To run the examples in-place, use
-- `zig build example_glfw_opengl3`
-- `zig build example_glfw_vulkan`
-
-See build.zig for more information on how the examples are built.
 
 ## Generating new bindings
 

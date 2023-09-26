@@ -34,7 +34,7 @@ pub fn link_cimgui_source_files(b: *std.Build, exe: *std.Build.Step.Compile) voi
             },
             .flags = &[_][]const u8
             {
-                "-std=c++17",
+                "-std=c++11",
                 "-fno-sanitize=undefined",
                 "-ffunction-sections",
                 "-fvisibility=hidden",
@@ -103,7 +103,7 @@ pub fn link_lunasvg_source_files(b: *std.Build, exe: *std.Build.Step.Compile) vo
         },
         &[_][]const u8
         {
-            "-std=c++17",
+            "-std=c++11",
             "-fno-sanitize=undefined",
             "-ffunction-sections",
             "-fvisibility=hidden",

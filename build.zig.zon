@@ -1,6 +1,6 @@
 .{
     .name = "Zig-ImGui",
-    .version = "0.12.493",
+    .version = "0.12.589",
     .dependencies = .{
         .freetype = .{
             .url = "https://pkg.machengine.org/freetype/371d90bbaec285fd4f2bda42816ba90ca20c5b44.tar.gz",
