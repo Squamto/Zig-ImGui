@@ -208,7 +208,9 @@ pub fn Vector(comptime T: type) type {
         }
         pub fn reserve(self: *@This(), new_capacity: u32) void {
             if (new_capacity <= self.Capacity) return;
-            const new_data: ?[*]T = @ptrCast(@as(T, @alignCast(raw.igMemAlloc(new_capacity * @sizeOf(T)))));
+            const new_data: ?[*]T = @ptrCast(
+                @alignCast(@as(?[*]u8, @ptrCast(raw.igMemAlloc(new_capacity * @sizeOf(T)))))
+            );
             if (self.Data) |sd| {
                 if (self.Size != 0) {
                     @memcpy(
@@ -224,7 +226,9 @@ pub fn Vector(comptime T: type) type {
         pub fn reserve_discard(self: *@This(), new_capacity: u32) void {
             if (new_capacity <= self.Capacity) return;
             if (self.Data) |sd| raw.igMemFree(@ptrCast(sd));
-            self.Data = @ptrCast(@as(T, @alignCast(raw.igMemAlloc(new_capacity * @sizeOf(T)))));
+            self.Data = @ptrCast(
+                @alignCast(@as(?[*]u8, @ptrCast(raw.igMemAlloc(new_capacity * @sizeOf(T)))))
+            );
             self.Capacity = new_capacity;
         }
 
