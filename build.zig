@@ -3,7 +3,6 @@ const builtin = @import("builtin");
 
 const imgui_build = @import("zig-imgui/imgui_build.zig");
 
-
 const glslc_command = if (builtin.os.tag == .windows) "tools/win/glslc.exe" else "glslc";
 
 pub fn build(b: *std.Build) void {
@@ -18,54 +17,33 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const enable_freetype = b.option(bool, "enable_freetype",
-        "Enable building freetype as ImGui's font renderer."
-    ) orelse false;
+    const enable_freetype = b.option(bool, "enable_freetype", "Enable building freetype as ImGui's font renderer.") orelse false;
 
-    const enable_lunasvg = b.option(bool, "enable_lunasvg",
-        "Enable building lunasvg to provide better emoji support in freetype. Requires freetype to be enabled."
-    ) orelse false;
+    const enable_lunasvg = b.option(bool, "enable_lunasvg", "Enable building lunasvg to provide better emoji support in freetype. Requires freetype to be enabled.") orelse false;
+
+    const enable_vulkan_backend = b.option(bool, "backend_vulkan", "Include Vulkan Backend Implementation.") orelse false;
+
+    const enable_glfw_backend = b.option(bool, "backend_glfw", "Include GLFW Backend Implementation.") orelse false;
 
     const freetype_dep =
         if (enable_freetype)
-            b.dependency("freetype", .{ .target = target, .optimize = optimize })
-        else
-            null;
+        b.dependency("freetype", .{ .target = target, .optimize = optimize })
+    else
+        null;
 
     const module = imgui_build.get_module(b);
-    const lib = imgui_build.get_artifact(b, freetype_dep, enable_lunasvg, target, optimize);
+    const lib = imgui_build.get_artifact(
+        b,
+        freetype_dep,
+        enable_lunasvg,
+        enable_vulkan_backend,
+        enable_glfw_backend,
+        target,
+        optimize,
+    );
     b.installArtifact(lib);
 
-    imgui_build.add_test_step(b, "test", module, lib, target, optimize);
-
-    // {
-    //     const exe = example_exe(b, "example_glfw_vulkan", module, lib, target, optimize);
-    //     link_glfw(exe, target);
-    //     link_vulkan(exe, target);
-
-    //     const run_cmd = b.addRunArtifact(exe);
-    //     run_cmd.step.dependOn(b.getInstallStep());
-    //     if (b.args) |args| {
-    //         run_cmd.addArgs(args);
-    //     }
-
-    //     const run_step = b.step("runvk", "Run the app with Vulkan");
-    //     run_step.dependOn(&run_cmd.step);
-    // }
-    // {
-    //     const exe = example_exe(b, "example_glfw_opengl3", module, lib, target, optimize);
-    //     link_glfw(exe, target);
-    //     link_glad(exe);
-
-    //     const run_cmd = b.addRunArtifact(exe);
-    //     run_cmd.step.dependOn(b.getInstallStep());
-    //     if (b.args) |args| {
-    //         run_cmd.addArgs(args);
-    //     }
-
-    //     const run_step = b.step("rungl", "Run the app with OpenGL");
-    //     run_step.dependOn(&run_cmd.step);
-    // }
+    imgui_build.add_test_step(b, "test_imgui", module, lib, target, optimize);
 }
 
 fn example_exe(
@@ -76,15 +54,12 @@ fn example_exe(
     target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Step.Compile {
-    const exe = b.addExecutable
-    (
-        .{
-            .name = name,
-            .root_source_file = .{ .path = "examples/" ++ name ++ ".zig" },
-            .target = target,
-            .optimize = optimize,
-        }
-    );
+    const exe = b.addExecutable(.{
+        .name = name,
+        .root_source_file = .{ .path = "examples/" ++ name ++ ".zig" },
+        .target = target,
+        .optimize = optimize,
+    });
 
     exe.linkLibrary(lib);
     exe.addModule(imgui_build.zig_imgui_mod_name, module);
@@ -95,21 +70,15 @@ fn example_exe(
 
 fn link_glad(exe: *std.Build.Step.Compile) void {
     exe.addIncludePath(.{ .path = "examples/include/c_include" });
-    exe.addCSourceFile(.{
-        .file = .{ .path = "examples/c_src/glad.c" },
-        .flags = &[_][]const u8{ "-std=c99" }
-    });
+    exe.addCSourceFile(.{ .file = .{ .path = "examples/c_src/glad.c" }, .flags = &[_][]const u8{"-std=c99"} });
 }
 
 fn link_glfw(exe: *std.Build.Step.Compile, target: std.zig.CrossTarget) void {
     if (target.isWindows()) {
-        exe.addObjectFile(.{
-            .path =
-                if (target.getAbi() == .msvc)
-                    "examples/lib/win/glfw3.lib"
-                else
-                    "examples/lib/win/libglfw3.a"
-        });
+        exe.addObjectFile(.{ .path = if (target.getAbi() == .msvc)
+            "examples/lib/win/glfw3.lib"
+        else
+            "examples/lib/win/libglfw3.a" });
         exe.linkSystemLibrary("gdi32");
         exe.linkSystemLibrary("shell32");
     } else {
