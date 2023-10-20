@@ -11,4 +11,11 @@
 #ifdef IMGUI_ENABLE_FREETYPE
 #include "imgui/imgui_freetype.cpp"
 #endif
+
+#define GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_VULKAN
+#include "imgui/imgui_impl_glfw.cpp"
+#include "imgui/imgui_impl_vulkan.cpp"
+
 #include "cimgui.cpp"
+
