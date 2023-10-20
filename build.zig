@@ -5,7 +5,7 @@ const imgui_build = @import("zig-imgui/imgui_build.zig");
 
 const glslc_command = if (builtin.os.tag == .windows) "tools/win/glslc.exe" else "glslc";
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -21,9 +21,19 @@ pub fn build(b: *std.Build) void {
 
     const enable_lunasvg = b.option(bool, "enable_lunasvg", "Enable building lunasvg to provide better emoji support in freetype. Requires freetype to be enabled.") orelse false;
 
-    const enable_vulkan_backend = b.option(bool, "backend_vulkan", "Include Vulkan Backend Implementation.") orelse false;
-
     const enable_glfw_backend = b.option(bool, "backend_glfw", "Include GLFW Backend Implementation.") orelse false;
+
+    const enable_vulkan_bakend = b.option(bool, "backend_vulkan", "Include Vulkan Backend Implementation.") orelse false;
+
+    const custom_vulkan_sdk_location = b.option([]const u8, "vulkan_sdk_location", "Include Vulkan Backend Implementation.");
+
+    const vulkan_sdk_location =
+        if (!enable_vulkan_bakend) null else blk: {
+        if (custom_vulkan_sdk_location) |sdk|
+            break :blk sdk
+        else
+            break :blk std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch "";
+    };
 
     const freetype_dep =
         if (enable_freetype)
@@ -31,13 +41,16 @@ pub fn build(b: *std.Build) void {
     else
         null;
 
+    const glfw_dep = b.dependency("mach_glfw", .{ .target = target, .optimize = optimize });
+
     const module = imgui_build.get_module(b);
-    const lib = imgui_build.get_artifact(
+    const lib = try imgui_build.get_artifact(
         b,
         freetype_dep,
         enable_lunasvg,
-        enable_vulkan_backend,
+        vulkan_sdk_location,
         enable_glfw_backend,
+        glfw_dep,
         target,
         optimize,
     );

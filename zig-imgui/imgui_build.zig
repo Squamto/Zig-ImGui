@@ -35,7 +35,15 @@ pub fn link_cimgui_source_files(b: *std.Build, exe: *std.Build.Step.Compile) voi
     });
 }
 
-pub fn addVulkanBackendImplementation(b: *std.Build, exe: *std.Build.Step.Compile) void {
+pub fn addVulkanBackendImplementation(b: *std.Build, exe: *std.Build.Step.Compile, vulkan_include_path: []const u8) void {
+    _ = vulkan_include_path;
+    // exe.addIncludePath(.{
+    //     .cwd_relative = b.pathJoin(&[_][]const u8{
+    //         vulkan_include_path,
+    //         "Include",
+    //     }),
+    // });
+
     exe.addCSourceFile(.{
         .file = .{ .path = b.pathJoin(&[_][]const u8{
             zig_imgui_path,
@@ -130,11 +138,12 @@ pub fn get_artifact(
     b: *std.Build,
     freetype_dep: ?*std.Build.Dependency,
     enable_lunasvg: bool,
-    include_vulkan_backend: bool,
+    vulkan_include_path: ?[]const u8,
     include_glfw_backend: bool,
+    glfw_dependency: *std.Build.Dependency,
     target: std.zig.CrossTarget,
     optimize: std.builtin.OptimizeMode,
-) *std.Build.Step.Compile {
+) !*std.Build.Step.Compile {
     var cimgui = b.addStaticLibrary(.{
         .name = zig_imgui_lib_name,
         .target = target,
@@ -153,8 +162,10 @@ pub fn get_artifact(
         link_lunasvg_source_files(b, cimgui);
     }
 
-    if (include_vulkan_backend) {
-        addVulkanBackendImplementation(b, cimgui);
+    try @import("mach_glfw").link(glfw_dependency.builder, cimgui);
+
+    if (vulkan_include_path) |vk_path| {
+        addVulkanBackendImplementation(b, cimgui, vk_path);
     }
 
     if (include_glfw_backend) {
