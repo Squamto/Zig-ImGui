@@ -44,6 +44,11 @@ pub fn build(b: *std.Build) !void {
     const glfw_dep = b.dependency("mach_glfw", .{ .target = target, .optimize = optimize });
 
     const module = imgui_build.get_module(b);
+    _ = b.addModule("imguiImpl", .{
+        .source_file = .{
+            .path = b.pathJoin(&[_][]const u8{ "zig-imgui", "imgui_backend.zig" }),
+        },
+    });
     const lib = try imgui_build.get_artifact(
         b,
         freetype_dep,
