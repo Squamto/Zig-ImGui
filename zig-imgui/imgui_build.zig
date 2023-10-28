@@ -36,13 +36,20 @@ pub fn link_cimgui_source_files(b: *std.Build, exe: *std.Build.Step.Compile) voi
 }
 
 pub fn addVulkanBackendImplementation(b: *std.Build, exe: *std.Build.Step.Compile, vulkan_include_path: []const u8) void {
-    _ = vulkan_include_path;
     // exe.addIncludePath(.{
     //     .cwd_relative = b.pathJoin(&[_][]const u8{
     //         vulkan_include_path,
     //         "Include",
     //     }),
     // });
+
+    exe.addObjectFile(
+        .{ .cwd_relative = b.pathJoin(&[_][]const u8{
+            vulkan_include_path,
+            "Lib",
+            "vulkan-1.lib",
+        }) },
+    );
 
     exe.addCSourceFile(.{
         .file = .{ .path = b.pathJoin(&[_][]const u8{
