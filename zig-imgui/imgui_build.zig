@@ -43,12 +43,16 @@ pub fn addVulkanBackendImplementation(b: *std.Build, exe: *std.Build.Step.Compil
     //     }),
     // });
 
+    const path = b.pathJoin(&[_][]const u8{
+        vulkan_include_path,
+        "Lib",
+        "vulkan-1.lib",
+    });
+
+    std.log.info("{s}", .{path});
+
     exe.addObjectFile(
-        .{ .cwd_relative = b.pathJoin(&[_][]const u8{
-            vulkan_include_path,
-            "Lib",
-            "vulkan-1.lib",
-        }) },
+        .{ .cwd_relative = path },
     );
 
     exe.addCSourceFile(.{
