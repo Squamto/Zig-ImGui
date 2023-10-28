@@ -3,7 +3,9 @@ const std = @import("std");
 fn joinWithLocation(path: []const u8) []const u8 {
     const allocator = std.heap.page_allocator;
 
-    const base = @src().file.dir;
+    const src: std.builtin.SourceLocation = @src();
+
+    const base = src.file;
 
     const joined = std.fs.path.join(allocator, .{
         base, path,
